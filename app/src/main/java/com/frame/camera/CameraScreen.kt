@@ -156,6 +156,7 @@ fun CameraScreen() {
             onRecordingChange = { recording = it; if (!it) locked = false },
             onLocked = {
                 locked = true
+                lockedZoom = engine.currentLinearZoom()
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             },
             onZoomChange = { lockedZoom = it },
@@ -188,7 +189,11 @@ private fun CaptureButton(
             .pointerInput(controller, engine) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
-                    val pressed = controller.press(down.position.y, SystemClock.uptimeMillis())
+                    val pressed = controller.press(
+                        down.position.y,
+                        SystemClock.uptimeMillis(),
+                        engine.currentLinearZoom(),
+                    )
                     perform(pressed, engine, onRecordingChange, onLocked, onZoomChange)
                     if (pressed == CaptureAction.StopRecording) return@awaitEachGesture
 

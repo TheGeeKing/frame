@@ -19,14 +19,16 @@ class CaptureController(private val holdMillis: Long = HOLD_MILLIS) {
     private var state = State.Idle
     private var pressedAt = 0L
     private var pressedY = 0f
+    private var pressedZoom = 0f
 
-    fun press(y: Float, atMillis: Long): CaptureAction {
+    fun press(y: Float, atMillis: Long, linearZoom: Float = 0f): CaptureAction {
         if (state == State.RecordingLocked) {
             state = State.Idle
             return CaptureAction.StopRecording
         }
         pressedAt = atMillis
         pressedY = y
+        pressedZoom = linearZoom
         state = State.Pressing
         return CaptureAction.None
     }
@@ -41,7 +43,7 @@ class CaptureController(private val holdMillis: Long = HOLD_MILLIS) {
 
     fun drag(y: Float, height: Float): CaptureAction =
         if (state == State.RecordingHeld || state == State.RecordingLocked) {
-            CaptureAction.SetZoom(((pressedY - y) / height).coerceIn(0f, 1f))
+            CaptureAction.SetZoom((pressedZoom + (pressedY - y) / height).coerceIn(0f, 1f))
         } else {
             CaptureAction.None
         }

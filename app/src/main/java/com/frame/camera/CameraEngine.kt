@@ -91,6 +91,8 @@ class CameraEngine(
         camera?.cameraControl?.setLinearZoom(linearZoom)
     }
 
+    fun currentLinearZoom(): Float = camera?.cameraInfo?.zoomState?.value?.linearZoom ?: 0f
+
     fun takePhoto() {
         val values = mediaValues(MediaKind.Photo).apply { put(MediaStore.MediaColumns.IS_PENDING, 1) }
         val output = ImageCapture.OutputFileOptions.Builder(

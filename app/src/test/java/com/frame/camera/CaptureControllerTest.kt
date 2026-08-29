@@ -45,5 +45,14 @@ class CaptureControllerTest {
         assertEquals(CaptureAction.SetZoom(1f), capture.drag(y = -200f, height = 1000f))
         assertEquals(CaptureAction.SetZoom(0f), capture.drag(y = 1800f, height = 1000f))
     }
-}
 
+    @Test
+    fun `recording starts from the camera current zoom`() {
+        val capture = CaptureController()
+
+        capture.press(y = 800f, atMillis = 0, linearZoom = .4f)
+        capture.tick(atMillis = 250)
+
+        assertEquals(CaptureAction.SetZoom(.4f), capture.drag(y = 800f, height = 1000f))
+    }
+}
