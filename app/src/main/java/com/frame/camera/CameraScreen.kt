@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -73,6 +74,9 @@ fun CameraScreen() {
     var locked by remember { mutableStateOf(false) }
     var lockedZoom by remember { mutableStateOf(0f) }
     var elapsedSeconds by remember { mutableStateOf(0L) }
+    var showSettings by remember { mutableStateOf(false) }
+    val preferences = remember { context.getSharedPreferences("frame", android.content.Context.MODE_PRIVATE) }
+    var zoomSensitivity by remember { mutableStateOf(preferences.getFloat("zoomSensitivity", 1f)) }
     val engine = remember { CameraEngine(context, owner, previewView, { captured = it }, { error = it }) }
     val controller = remember { CaptureController() }
 
@@ -105,10 +109,10 @@ fun CameraScreen() {
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(engine) { detectTapGestures(onDoubleTap = { engine.switchCamera() }) }
-                .pointerInput(engine, locked) {
+                .pointerInput(engine, locked, zoomSensitivity) {
                     if (locked) {
                         detectTransformGestures { _, _, zoom, _ ->
-                            lockedZoom = (lockedZoom + (zoom - 1f) * .25f).coerceIn(0f, 1f)
+                            lockedZoom = (lockedZoom + (zoom - 1f) * .25f * zoomSensitivity).coerceIn(0f, 1f)
                             engine.setZoom(lockedZoom)
                         }
                     }
@@ -116,6 +120,19 @@ fun CameraScreen() {
         )
         if (recording) {
             RecordingIndicator(elapsedSeconds, locked, Modifier.align(Alignment.TopCenter).offset(y = 28.dp))
+        } else {
+            Button(
+                onClick = { showSettings = !showSettings },
+                modifier = Modifier.align(Alignment.TopEnd).offset(x = (-16).dp, y = 24.dp),
+            ) { Text("⚙") }
+            if (showSettings) {
+                ZoomSettings(
+                    zoomSensitivity,
+                    onChange = { zoomSensitivity = it },
+                    onFinished = { preferences.edit().putFloat("zoomSensitivity", zoomSensitivity).apply() },
+                    modifier = Modifier.align(Alignment.TopEnd).offset(x = (-16).dp, y = 88.dp),
+                )
+            }
         }
         LockTarget(recording, locked, Modifier.align(Alignment.BottomCenter).offset(x = 110.dp, y = (-62).dp))
         AnimatedVisibility(
@@ -131,6 +148,7 @@ fun CameraScreen() {
             engine,
             recording,
             locked,
+            zoomSensitivity,
             onRecordingChange = { recording = it; if (!it) locked = false },
             onLocked = {
                 locked = true
@@ -149,6 +167,7 @@ private fun CaptureButton(
     engine: CameraEngine,
     recording: Boolean,
     locked: Boolean,
+    zoomSensitivity: Float,
     onRecordingChange: (Boolean) -> Unit,
     onLocked: () -> Unit,
     onZoomChange: (Float) -> Unit,
@@ -156,7 +175,7 @@ private fun CaptureButton(
 ) {
     val lockSideDistance = with(LocalDensity.current) { 82.dp.toPx() }
     val lockVerticalTolerance = with(LocalDensity.current) { 64.dp.toPx() }
-    val zoomDistance = with(LocalDensity.current) { 600.dp.toPx() }
+    val zoomDistance = with(LocalDensity.current) { 600.dp.toPx() } / zoomSensitivity
     val ringColor by animateColorAsState(if (recording) Color.Red else Color.White, label = "capture ring")
     Box(
         modifier
@@ -204,6 +223,25 @@ private fun CaptureButton(
         if (locked) {
             Box(Modifier.align(Alignment.Center).size(28.dp).background(Color.Red, RoundedCornerShape(5.dp)))
         }
+    }
+}
+
+@Composable
+private fun ZoomSettings(
+    sensitivity: Float,
+    onChange: (Float) -> Unit,
+    onFinished: () -> Unit,
+    modifier: Modifier,
+) {
+    Column(modifier.width(220.dp).background(Color.Black.copy(alpha = .8f), RoundedCornerShape(16.dp)).padding(16.dp)) {
+        Text("Zoom sensitivity %.2f×".format(sensitivity), color = Color.White)
+        Slider(
+            value = sensitivity,
+            onValueChange = onChange,
+            valueRange = .5f..2f,
+            steps = 5,
+            onValueChangeFinished = onFinished,
+        )
     }
 }
 

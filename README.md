@@ -9,6 +9,7 @@ Minimal native Android proof of concept for fast photo and video capture.
 - Drag vertically while holding to zoom.
 - Drag right into the animated lock target; release, then tap the shutter to stop.
 - Pinch anywhere on the preview to zoom while recording is locked.
+- Use the corner settings button to tune and persist zoom sensitivity from 0.5× to 2×.
 - Double-tap the preview to switch cameras, including during a persistent recording.
 - Save publishes the pending capture to `DCIM/Frame`; Discard deletes it.
 - Copy places the captured media on Android's clipboard; Share opens the native app chooser.
