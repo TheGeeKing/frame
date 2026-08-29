@@ -1,9 +1,13 @@
 package com.frame.camera
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Intent
 import android.os.SystemClock
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.VideoView
+import android.widget.Toast
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -18,6 +22,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -86,6 +91,8 @@ fun CameraScreen() {
     captured?.let { media ->
         ReviewScreen(
             media,
+            onCopy = { copyMedia(context, media) },
+            onShare = { shareMedia(context, media) },
             onSave = { publish(context, media); captured = null },
             onDiscard = { discard(context, media); captured = null },
         )
@@ -249,7 +256,13 @@ private fun RecordingIndicator(seconds: Long, locked: Boolean, modifier: Modifie
 }
 
 @Composable
-private fun ReviewScreen(media: CapturedMedia, onSave: () -> Unit, onDiscard: () -> Unit) {
+private fun ReviewScreen(
+    media: CapturedMedia,
+    onCopy: () -> Unit,
+    onShare: () -> Unit,
+    onSave: () -> Unit,
+    onDiscard: () -> Unit,
+) {
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         if (media.kind == MediaKind.Video) {
             AndroidView(
@@ -272,9 +285,31 @@ private fun ReviewScreen(media: CapturedMedia, onSave: () -> Unit, onDiscard: ()
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        Row(Modifier.align(Alignment.BottomCenter).offset(y = (-32).dp)) {
-            Button(onClick = onDiscard) { Text("Discard") }
-            Button(onClick = onSave) { Text("Save") }
+        Column(Modifier.align(Alignment.BottomCenter).offset(y = (-32).dp)) {
+            Row {
+                Button(onClick = onCopy) { Text("Copy") }
+                Button(onClick = onShare) { Text("Share") }
+            }
+            Row {
+                Button(onClick = onDiscard) { Text("Discard") }
+                Button(onClick = onSave) { Text("Save") }
+            }
         }
     }
+}
+
+private fun copyMedia(context: android.content.Context, media: CapturedMedia) {
+    val clipboard = context.getSystemService(ClipboardManager::class.java)
+    clipboard.setPrimaryClip(ClipData.newUri(context.contentResolver, "Frame capture", media.uri))
+    Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
+}
+
+private fun shareMedia(context: android.content.Context, media: CapturedMedia) {
+    val share = Intent(Intent.ACTION_SEND).apply {
+        type = media.kind.mimeType
+        putExtra(Intent.EXTRA_STREAM, media.uri)
+        clipData = ClipData.newUri(context.contentResolver, "Frame capture", media.uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(Intent.createChooser(share, "Share capture"))
 }

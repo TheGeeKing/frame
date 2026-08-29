@@ -11,6 +11,7 @@ Minimal native Android proof of concept for fast photo and video capture.
 - Pinch anywhere on the preview to zoom while recording is locked.
 - Double-tap the preview to switch cameras, including during a persistent recording.
 - Save publishes the pending capture to `DCIM/Frame`; Discard deletes it.
+- Copy places the captured media on Android's clipboard; Share opens the native app chooser.
 
 ## Build and test
 
