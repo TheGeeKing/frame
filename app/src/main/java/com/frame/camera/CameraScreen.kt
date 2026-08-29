@@ -5,6 +5,12 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.VideoView
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -13,9 +19,11 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -33,16 +41,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.delay
+import kotlin.math.abs
 
 @Composable
 fun CameraScreen() {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
+    val haptics = LocalHapticFeedback.current
     val previewView = remember {
         PreviewView(context).apply {
             scaleType = PreviewView.ScaleType.FILL_CENTER
@@ -87,11 +99,15 @@ fun CameraScreen() {
         )
         if (recording) {
             RecordingIndicator(elapsedSeconds, locked, Modifier.align(Alignment.TopCenter).offset(y = 28.dp))
-            Text(
-                if (locked) "🔒 Locked" else "↖ Drag here to lock",
-                color = Color.White,
-                modifier = Modifier.align(Alignment.BottomCenter).offset(x = (-92).dp, y = (-172).dp),
-            )
+        }
+        LockTarget(recording, locked, Modifier.align(Alignment.BottomCenter).offset(x = (-110).dp, y = (-62).dp))
+        AnimatedVisibility(
+            visible = recording && !locked,
+            modifier = Modifier.align(Alignment.BottomCenter).offset(x = (-64).dp, y = (-88).dp),
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
+            Box(Modifier.width(44.dp).height(4.dp).background(Color.White.copy(alpha = .65f), CircleShape))
         }
         CaptureButton(
             controller,
@@ -99,7 +115,10 @@ fun CameraScreen() {
             recording,
             locked,
             onRecordingChange = { recording = it; if (!it) locked = false },
-            onLocked = { locked = true },
+            onLocked = {
+                locked = true
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            },
             modifier = Modifier.align(Alignment.BottomCenter).offset(y = (-48).dp),
         )
         error?.let { Text(it, color = Color.White, modifier = Modifier.align(Alignment.TopCenter).offset(y = 24.dp)) }
@@ -116,9 +135,10 @@ private fun CaptureButton(
     onLocked: () -> Unit,
     modifier: Modifier,
 ) {
-    val lockDistance = with(LocalDensity.current) { 140.dp.toPx() }
-    val lockSideDistance = with(LocalDensity.current) { 72.dp.toPx() }
+    val lockSideDistance = with(LocalDensity.current) { 82.dp.toPx() }
+    val lockVerticalTolerance = with(LocalDensity.current) { 64.dp.toPx() }
     val zoomDistance = with(LocalDensity.current) { 600.dp.toPx() }
+    val ringColor by animateColorAsState(if (recording) Color.Red else Color.White, label = "capture ring")
     Box(
         modifier
             .size(84.dp)
@@ -145,8 +165,8 @@ private fun CaptureButton(
                         val change = awaitPointerEvent().changes.first()
                         if (
                             !gestureLocked &&
-                            down.position.y - change.position.y >= lockDistance &&
-                            down.position.x - change.position.x >= lockSideDistance
+                            down.position.x - change.position.x >= lockSideDistance &&
+                            abs(down.position.y - change.position.y) <= lockVerticalTolerance
                         ) {
                             perform(controller.lock(), engine, onRecordingChange, onLocked)
                             gestureLocked = true
@@ -160,10 +180,28 @@ private fun CaptureButton(
                     }
                 }
             }
-            .border(4.dp, if (recording) Color.Red else Color.White, CircleShape),
+            .border(4.dp, ringColor, CircleShape),
     ) {
         if (locked) {
             Box(Modifier.align(Alignment.Center).size(28.dp).background(Color.Red, RoundedCornerShape(5.dp)))
+        }
+    }
+}
+
+@Composable
+private fun LockTarget(visible: Boolean, locked: Boolean, modifier: Modifier) {
+    AnimatedVisibility(
+        visible = visible,
+        modifier = modifier,
+        enter = fadeIn() + scaleIn(initialScale = .65f),
+        exit = fadeOut() + scaleOut(targetScale = .65f),
+    ) {
+        val color by animateColorAsState(if (locked) Color.Red else Color.Black.copy(alpha = .65f), label = "lock target")
+        Box(
+            Modifier.size(58.dp).background(color, CircleShape).border(3.dp, Color.White, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(if (locked) "✓" else "🔒", color = Color.White)
         }
     }
 }
