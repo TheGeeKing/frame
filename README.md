@@ -21,7 +21,23 @@ $env:ANDROID_HOME="$env:LOCALAPPDATA\Android\Sdk"
 .\gradlew.bat lintDebug testDebugUnitTest assembleDebug
 ```
 
-The debug APK is written to `app/build/outputs/apk/debug/app-debug.apk`.
+### Release builds
+
+Build minimized APKs for each supported CPU architecture and a Play Store bundle:
+
+```powershell
+.\gradlew.bat assembleRelease -PabiSplits=true
+.\gradlew.bat bundleRelease
+```
+
+Outputs:
+
+- `app/build/outputs/apk/release/app-armeabi-v7a-release-unsigned.apk`
+- `app/build/outputs/apk/release/app-arm64-v8a-release-unsigned.apk`
+- `app/build/outputs/apk/release/app-x86_64-release-unsigned.apk`
+- `app/build/outputs/bundle/release/app-release.aab`
+
+One build supports every Android version from Android 10 (`minSdk 29`) onward; the APK split only selects the phone's CPU architecture. Release APKs must be signed with your private keystore before installation or distribution. Google Play signs and splits the AAB automatically.
 
 ## Required device spike
 
