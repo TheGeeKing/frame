@@ -1,5 +1,6 @@
 package com.frame.camera
 
+import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
@@ -9,6 +10,7 @@ import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.MirrorMode
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FallbackStrategy
@@ -26,7 +28,12 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-data class CapturedMedia(val uri: Uri, val video: Boolean)
+enum class MediaKind(val extension: String, val mimeType: String) {
+    Photo("jpg", "image/jpeg"),
+    Video("mp4", "video/mp4"),
+}
+
+data class CapturedMedia(val uri: Uri, val kind: MediaKind)
 
 class CameraEngine(
     private val context: Context,
@@ -46,7 +53,9 @@ class CameraEngine(
             ),
         )
         .build()
-    private val video = VideoCapture.withOutput(recorder)
+    private val video = VideoCapture.Builder(recorder)
+        .setMirrorMode(MirrorMode.MIRROR_MODE_ON_FRONT_ONLY)
+        .build()
     private var provider: ProcessCameraProvider? = null
     private var camera: Camera? = null
     private var recording: Recording? = null
@@ -83,7 +92,7 @@ class CameraEngine(
     }
 
     fun takePhoto() {
-        val values = mediaValues("jpg").apply { put(MediaStore.MediaColumns.IS_PENDING, 1) }
+        val values = mediaValues(MediaKind.Photo).apply { put(MediaStore.MediaColumns.IS_PENDING, 1) }
         val output = ImageCapture.OutputFileOptions.Builder(
             context.contentResolver,
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
@@ -91,7 +100,7 @@ class CameraEngine(
         ).build()
         photo.takePicture(output, executor, object : ImageCapture.OnImageSavedCallback {
             override fun onImageSaved(result: ImageCapture.OutputFileResults) {
-                result.savedUri?.let { onCaptured(CapturedMedia(it, false)) } ?: onError("Photo URI missing")
+                result.savedUri?.let { onCaptured(CapturedMedia(it, MediaKind.Photo)) } ?: onError("Photo URI missing")
             }
 
             override fun onError(exception: ImageCaptureException) {
@@ -100,12 +109,13 @@ class CameraEngine(
         })
     }
 
+    @SuppressLint("UnsafeOptInUsageError")
     fun startRecording() {
         if (recording != null) return
         val options = MediaStoreOutputOptions.Builder(
             context.contentResolver,
             MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
-        ).setContentValues(mediaValues("mp4").apply { put(MediaStore.MediaColumns.IS_PENDING, 1) }).build()
+        ).setContentValues(mediaValues(MediaKind.Video).apply { put(MediaStore.MediaColumns.IS_PENDING, 1) }).build()
         var pending = recorder.prepareRecording(context, options).asPersistentRecording()
         if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
             pending = pending.withAudioEnabled()
@@ -114,7 +124,7 @@ class CameraEngine(
             if (event is VideoRecordEvent.Finalize) {
                 recording = null
                 if (event.hasError()) onError(event.cause?.message ?: "Recording failed")
-                else onCaptured(CapturedMedia(event.outputResults.outputUri, true))
+                else onCaptured(CapturedMedia(event.outputResults.outputUri, MediaKind.Video))
             }
         }
     }
@@ -128,11 +138,11 @@ class CameraEngine(
         provider?.unbindAll()
     }
 
-    private fun mediaValues(extension: String) = ContentValues().apply {
+    private fun mediaValues(kind: MediaKind) = ContentValues().apply {
         val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-        put(MediaStore.MediaColumns.DISPLAY_NAME, "FRAME_$stamp.$extension")
+        put(MediaStore.MediaColumns.DISPLAY_NAME, "FRAME_$stamp.${kind.extension}")
         put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/Frame")
-        put(MediaStore.MediaColumns.MIME_TYPE, if (extension == "jpg") "image/jpeg" else "video/mp4")
+        put(MediaStore.MediaColumns.MIME_TYPE, kind.mimeType)
     }
 }
 
@@ -148,4 +158,3 @@ fun publish(context: Context, media: CapturedMedia) {
 fun discard(context: Context, media: CapturedMedia) {
     context.contentResolver.delete(media.uri, null, null)
 }
-

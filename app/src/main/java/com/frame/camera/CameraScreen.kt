@@ -78,6 +78,7 @@ fun CameraScreen() {
 @Composable
 private fun CaptureButton(controller: CaptureController, engine: CameraEngine, modifier: Modifier) {
     val lockDistance = with(LocalDensity.current) { 140.dp.toPx() }
+    val lockSideDistance = with(LocalDensity.current) { 72.dp.toPx() }
     val zoomDistance = with(LocalDensity.current) { 600.dp.toPx() }
     Box(
         modifier
@@ -103,7 +104,11 @@ private fun CaptureButton(controller: CaptureController, engine: CameraEngine, m
                     var locked = false
                     while (true) {
                         val change = awaitPointerEvent().changes.first()
-                        if (!locked && down.position.y - change.position.y >= lockDistance) {
+                        if (
+                            !locked &&
+                            down.position.y - change.position.y >= lockDistance &&
+                            down.position.x - change.position.x >= lockSideDistance
+                        ) {
                             perform(controller.lock(), engine)
                             locked = true
                         } else if (!locked) {
@@ -130,7 +135,7 @@ private fun perform(action: CaptureAction, engine: CameraEngine) = when (action)
 @Composable
 private fun ReviewScreen(media: CapturedMedia, onSave: () -> Unit, onDiscard: () -> Unit) {
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        if (media.video) {
+        if (media.kind == MediaKind.Video) {
             AndroidView(
                 factory = { context ->
                     VideoView(context).apply {
