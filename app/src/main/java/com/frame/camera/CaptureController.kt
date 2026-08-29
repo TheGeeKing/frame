@@ -9,7 +9,11 @@ sealed interface CaptureAction {
     data class SetZoom(val linearZoom: Float) : CaptureAction
 }
 
-class CaptureController(private val holdMillis: Long = 225) {
+class CaptureController(private val holdMillis: Long = HOLD_MILLIS) {
+    companion object {
+        const val HOLD_MILLIS = 225L
+    }
+
     private enum class State { Idle, Pressing, RecordingHeld, RecordingLocked }
 
     private var state = State.Idle
@@ -63,4 +67,3 @@ class CaptureController(private val holdMillis: Long = 225) {
         State.Idle -> CaptureAction.None
     }
 }
-

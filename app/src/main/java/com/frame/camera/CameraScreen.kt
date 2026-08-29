@@ -91,7 +91,7 @@ private fun CaptureButton(controller: CaptureController, engine: CameraEngine, m
                     perform(pressed, engine)
                     if (pressed == CaptureAction.StopRecording) return@awaitEachGesture
 
-                    val quickUp = withTimeoutOrNull(225) {
+                    val quickUp = withTimeoutOrNull(CaptureController.HOLD_MILLIS) {
                         var event = awaitPointerEvent()
                         while (event.changes.any { it.pressed }) event = awaitPointerEvent()
                     }
