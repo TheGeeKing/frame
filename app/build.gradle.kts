@@ -28,6 +28,12 @@ android {
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
         }
+        create("localRelease") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += "release"
+            versionNameSuffix = "-local"
+        }
     }
 
     splits {
