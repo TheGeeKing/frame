@@ -7,7 +7,8 @@ Minimal native Android proof of concept for fast photo and video capture.
 - Tap the shutter for a photo.
 - Hold for 225 ms to start video; release to stop.
 - Drag vertically while holding to zoom.
-- Drag left into the animated lock target; release, then tap the shutter to stop.
+- Drag right into the animated lock target; release, then tap the shutter to stop.
+- Pinch anywhere on the preview to zoom while recording is locked.
 - Double-tap the preview to switch cameras, including during a persistent recording.
 - Save publishes the pending capture to `DCIM/Frame`; Discard deletes it.
 

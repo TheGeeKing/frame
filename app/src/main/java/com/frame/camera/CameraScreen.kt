@@ -16,6 +16,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -65,6 +66,7 @@ fun CameraScreen() {
     var error by remember { mutableStateOf<String?>(null) }
     var recording by remember { mutableStateOf(false) }
     var locked by remember { mutableStateOf(false) }
+    var lockedZoom by remember { mutableStateOf(0f) }
     var elapsedSeconds by remember { mutableStateOf(0L) }
     val engine = remember { CameraEngine(context, owner, previewView, { captured = it }, { error = it }) }
     val controller = remember { CaptureController() }
@@ -93,17 +95,25 @@ fun CameraScreen() {
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(
             factory = { previewView },
-            modifier = Modifier.fillMaxSize().pointerInput(engine) {
-                detectTapGestures(onDoubleTap = { engine.switchCamera() })
-            },
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(engine) { detectTapGestures(onDoubleTap = { engine.switchCamera() }) }
+                .pointerInput(engine, locked) {
+                    if (locked) {
+                        detectTransformGestures { _, _, zoom, _ ->
+                            lockedZoom = (lockedZoom + (zoom - 1f) * .25f).coerceIn(0f, 1f)
+                            engine.setZoom(lockedZoom)
+                        }
+                    }
+                },
         )
         if (recording) {
             RecordingIndicator(elapsedSeconds, locked, Modifier.align(Alignment.TopCenter).offset(y = 28.dp))
         }
-        LockTarget(recording, locked, Modifier.align(Alignment.BottomCenter).offset(x = (-110).dp, y = (-62).dp))
+        LockTarget(recording, locked, Modifier.align(Alignment.BottomCenter).offset(x = 110.dp, y = (-62).dp))
         AnimatedVisibility(
             visible = recording && !locked,
-            modifier = Modifier.align(Alignment.BottomCenter).offset(x = (-64).dp, y = (-88).dp),
+            modifier = Modifier.align(Alignment.BottomCenter).offset(x = 64.dp, y = (-88).dp),
             enter = fadeIn(),
             exit = fadeOut(),
         ) {
@@ -119,6 +129,7 @@ fun CameraScreen() {
                 locked = true
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             },
+            onZoomChange = { lockedZoom = it },
             modifier = Modifier.align(Alignment.BottomCenter).offset(y = (-48).dp),
         )
         error?.let { Text(it, color = Color.White, modifier = Modifier.align(Alignment.TopCenter).offset(y = 24.dp)) }
@@ -133,6 +144,7 @@ private fun CaptureButton(
     locked: Boolean,
     onRecordingChange: (Boolean) -> Unit,
     onLocked: () -> Unit,
+    onZoomChange: (Float) -> Unit,
     modifier: Modifier,
 ) {
     val lockSideDistance = with(LocalDensity.current) { 82.dp.toPx() }
@@ -147,7 +159,7 @@ private fun CaptureButton(
                 awaitEachGesture {
                     val down = awaitFirstDown()
                     val pressed = controller.press(down.position.y, SystemClock.uptimeMillis())
-                    perform(pressed, engine, onRecordingChange, onLocked)
+                    perform(pressed, engine, onRecordingChange, onLocked, onZoomChange)
                     if (pressed == CaptureAction.StopRecording) return@awaitEachGesture
 
                     val quickUp = withTimeoutOrNull(CaptureController.HOLD_MILLIS) {
@@ -155,26 +167,26 @@ private fun CaptureButton(
                         while (event.changes.any { it.pressed }) event = awaitPointerEvent()
                     }
                     if (quickUp != null) {
-                        perform(controller.release(SystemClock.uptimeMillis()), engine, onRecordingChange, onLocked)
+                        perform(controller.release(SystemClock.uptimeMillis()), engine, onRecordingChange, onLocked, onZoomChange)
                         return@awaitEachGesture
                     }
 
-                    perform(controller.tick(SystemClock.uptimeMillis()), engine, onRecordingChange, onLocked)
+                    perform(controller.tick(SystemClock.uptimeMillis()), engine, onRecordingChange, onLocked, onZoomChange)
                     var gestureLocked = false
                     while (true) {
                         val change = awaitPointerEvent().changes.first()
                         if (
                             !gestureLocked &&
-                            down.position.x - change.position.x >= lockSideDistance &&
+                            change.position.x - down.position.x >= lockSideDistance &&
                             abs(down.position.y - change.position.y) <= lockVerticalTolerance
                         ) {
-                            perform(controller.lock(), engine, onRecordingChange, onLocked)
+                            perform(controller.lock(), engine, onRecordingChange, onLocked, onZoomChange)
                             gestureLocked = true
                         } else if (!gestureLocked) {
-                            perform(controller.drag(change.position.y, zoomDistance), engine, onRecordingChange, onLocked)
+                            perform(controller.drag(change.position.y, zoomDistance), engine, onRecordingChange, onLocked, onZoomChange)
                         }
                         if (!change.pressed) {
-                            perform(controller.release(SystemClock.uptimeMillis()), engine, onRecordingChange, onLocked)
+                            perform(controller.release(SystemClock.uptimeMillis()), engine, onRecordingChange, onLocked, onZoomChange)
                             break
                         }
                     }
@@ -211,11 +223,12 @@ private fun perform(
     engine: CameraEngine,
     onRecordingChange: (Boolean) -> Unit,
     onLocked: () -> Unit,
+    onZoomChange: (Float) -> Unit,
 ) = when (action) {
     CaptureAction.TakePhoto -> engine.takePhoto()
     CaptureAction.StartRecording -> { engine.startRecording(); onRecordingChange(true) }
     CaptureAction.StopRecording -> { engine.stopRecording(); onRecordingChange(false) }
-    is CaptureAction.SetZoom -> engine.setZoom(action.linearZoom)
+    is CaptureAction.SetZoom -> { engine.setZoom(action.linearZoom); onZoomChange(action.linearZoom) }
     CaptureAction.LockRecording -> onLocked()
     CaptureAction.None -> Unit
 }
