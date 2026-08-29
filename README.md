@@ -35,3 +35,4 @@ Camera behavior depends on OEM hardware. Before UI polish, install the APK on th
 
 No emulator or physical device was attached during the automated build, so this OEM-specific spike remains manual.
 
+Audio is recorded when microphone permission is granted; denying it deliberately falls back to silent video. CameraX mirrors front-camera video to match the preview. Front photos keep the camera's unmirrored output because mirroring them would require an image-processing pass outside this PoC.
