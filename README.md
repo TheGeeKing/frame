@@ -42,7 +42,16 @@ Outputs:
 - `app/build/outputs/apk/release/app-x86_64-release-unsigned.apk`
 - `app/build/outputs/bundle/release/app-release.aab`
 
-One build supports every Android version from Android 10 (`minSdk 29`) onward; the APK split only selects the phone's CPU architecture. Use `localRelease` for direct installation: it is optimized and non-debuggable but signed with Android's local debug key. Production `release` APKs remain unsigned until signed with your private keystore. Google Play signs and splits the AAB automatically.
+One build supports every Android version from Android 10 (`minSdk 29`) onward; the APK split only selects the phone's CPU architecture. Use `localRelease` for direct installation: it is optimized and non-debuggable but signed with Android's local debug key. Production `release` artifacts are signed when the release keystore environment variables are present. Google Play splits the AAB automatically.
+
+Release Please maintains a release PR from conventional commits. Merging that PR creates the version tag and GitHub Release, then CI uploads all production-signed ABI APKs plus the signed AAB. Configure these repository secrets first:
+
+- `RELEASE_KEYSTORE_BASE64`: the production `.jks` keystore encoded as base64 so GitHub can store it as text; CI decodes it into the file referenced by `RELEASE_KEYSTORE`
+- `RELEASE_STORE_PASSWORD`: password protecting the keystore file
+- `RELEASE_KEY_ALIAS`: name of the signing key inside the keystore
+- `RELEASE_KEY_PASSWORD`: password protecting that signing key; it may be the same as the keystore password
+
+Android requires every installable release to be signed. Keep the keystore and passwords private and backed up: future app updates must be signed with the same key.
 
 ## Required device spike
 
