@@ -141,8 +141,9 @@ fun CameraScreen() {
                 }
                 .pointerInput(engine, locked, zoomSensitivity) {
                     if (locked) {
-                        detectTransformGestures { _, _, zoom, _ ->
-                            lockedZoom = (lockedZoom + (zoom - 1f) * .25f * zoomSensitivity).coerceIn(0f, 1f)
+                        val zoomDistance = 600.dp.toPx() / zoomSensitivity
+                        detectTransformGestures { _, pan, zoom, _ ->
+                            lockedZoom = (lockedZoom - pan.y / zoomDistance + (zoom - 1f) * .25f * zoomSensitivity).coerceIn(0f, 1f)
                             engine.setZoom(lockedZoom)
                         }
                     }
