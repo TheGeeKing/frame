@@ -6,6 +6,7 @@ sealed interface CaptureAction {
     data object StartRecording : CaptureAction
     data object StopRecording : CaptureAction
     data object LockRecording : CaptureAction
+    data object PauseRecording : CaptureAction
     data class SetZoom(val linearZoom: Float) : CaptureAction
 }
 
@@ -52,6 +53,14 @@ class CaptureController(private val holdMillis: Long = HOLD_MILLIS) {
         if (state == State.RecordingHeld) {
             state = State.RecordingLocked
             CaptureAction.LockRecording
+        } else {
+            CaptureAction.None
+        }
+
+    fun pause(): CaptureAction =
+        if (state == State.RecordingHeld) {
+            state = State.RecordingLocked
+            CaptureAction.PauseRecording
         } else {
             CaptureAction.None
         }

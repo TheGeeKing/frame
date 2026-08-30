@@ -36,6 +36,18 @@ class CaptureControllerTest {
     }
 
     @Test
+    fun `pausing locks recording after release`() {
+        val capture = CaptureController()
+
+        capture.press(y = 800f, atMillis = 0)
+        capture.tick(atMillis = 250)
+        assertEquals(CaptureAction.PauseRecording, capture.pause())
+        assertEquals(CaptureAction.None, capture.release(atMillis = 300))
+
+        assertEquals(CaptureAction.StopRecording, capture.press(y = 800f, atMillis = 400))
+    }
+
+    @Test
     fun `vertical drag changes zoom within camera range`() {
         val capture = CaptureController()
 
