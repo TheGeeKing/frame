@@ -10,6 +10,7 @@ import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.MirrorMode
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -27,6 +28,7 @@ import androidx.lifecycle.LifecycleOwner
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 enum class MediaKind(val extension: String, val mimeType: String) {
     Photo("jpg", "image/jpeg"),
@@ -93,6 +95,13 @@ class CameraEngine(
 
     fun currentLinearZoom(): Float = camera?.cameraInfo?.zoomState?.value?.linearZoom ?: 0f
 
+    fun focus(x: Float, y: Float) {
+        val point = previewView.meteringPointFactory.createPoint(x, y)
+        camera?.cameraControl?.startFocusAndMetering(
+            FocusMeteringAction.Builder(point).setAutoCancelDuration(3, TimeUnit.SECONDS).build(),
+        )
+    }
+
     fun takePhoto() {
         val values = mediaValues(MediaKind.Photo).apply { put(MediaStore.MediaColumns.IS_PENDING, 1) }
         val output = ImageCapture.OutputFileOptions.Builder(
@@ -134,6 +143,10 @@ class CameraEngine(
     fun stopRecording() {
         recording?.stop()
     }
+
+    fun pauseRecording() = recording?.pause()
+
+    fun resumeRecording() = recording?.resume()
 
     fun close() {
         recording?.stop()

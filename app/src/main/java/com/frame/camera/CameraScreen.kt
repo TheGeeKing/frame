@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -49,12 +50,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.withTimeoutOrNull
@@ -75,7 +78,9 @@ fun CameraScreen() {
     var captured by remember { mutableStateOf<CapturedMedia?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var recording by remember { mutableStateOf(false) }
+    var paused by remember { mutableStateOf(false) }
     var locked by remember { mutableStateOf(false) }
+    var focusPoint by remember { mutableStateOf<Offset?>(null) }
     var lockedZoom by remember { mutableStateOf(0f) }
     var elapsedSeconds by remember { mutableStateOf(0L) }
     var showSettings by remember { mutableStateOf(false) }
@@ -95,6 +100,12 @@ fun CameraScreen() {
             elapsedSeconds++
         }
     }
+    LaunchedEffect(focusPoint) {
+        if (focusPoint != null) {
+            delay(1_000)
+            focusPoint = null
+        }
+    }
 
     captured?.let { media ->
         ReviewScreen(
@@ -112,7 +123,12 @@ fun CameraScreen() {
             factory = { previewView },
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(engine) { detectTapGestures(onDoubleTap = { engine.switchCamera() }) }
+                .pointerInput(engine) {
+                    detectTapGestures(
+                        onDoubleTap = { engine.switchCamera() },
+                        onTap = { focusPoint = it; engine.focus(it.x, it.y) },
+                    )
+                }
                 .pointerInput(engine, locked, zoomSensitivity) {
                     if (locked) {
                         detectTransformGestures { _, _, zoom, _ ->
@@ -122,6 +138,14 @@ fun CameraScreen() {
                     }
                 },
         )
+        focusPoint?.let { point ->
+            Box(
+                Modifier
+                    .offset { IntOffset((point.x - 32.dp.toPx()).toInt(), (point.y - 32.dp.toPx()).toInt()) }
+                    .size(64.dp)
+                    .border(2.dp, Color.White, RoundedCornerShape(8.dp)),
+            )
+        }
         if (recording) {
             RecordingIndicator(elapsedSeconds, locked, Modifier.align(Alignment.TopCenter).offset(y = 28.dp))
         } else {
@@ -139,6 +163,16 @@ fun CameraScreen() {
             }
         }
         LockTarget(recording, locked, Modifier.align(Alignment.BottomCenter).offset(x = 110.dp, y = (-62).dp))
+        if (recording) {
+            Button(
+                onClick = {
+                    paused = !paused
+                    if (paused) engine.pauseRecording() else engine.resumeRecording()
+                },
+                modifier = Modifier.align(Alignment.BottomCenter).offset(x = (-110).dp, y = (-62).dp).size(58.dp),
+                contentPadding = PaddingValues(0.dp),
+            ) { Text(if (paused) "▶" else "Ⅱ") }
+        }
         AnimatedVisibility(
             visible = recording && !locked,
             modifier = Modifier.align(Alignment.BottomCenter).offset(x = 64.dp, y = (-88).dp),
@@ -153,7 +187,7 @@ fun CameraScreen() {
             recording,
             locked,
             zoomSensitivity,
-            onRecordingChange = { recording = it; if (!it) locked = false },
+            onRecordingChange = { recording = it; if (!it) { locked = false; paused = false } },
             onLocked = {
                 locked = true
                 lockedZoom = engine.currentLinearZoom()
