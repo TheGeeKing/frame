@@ -2,7 +2,6 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
@@ -78,5 +77,5 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling:1.11.4")
-    testImplementation(kotlin("test"))
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit")
 }
