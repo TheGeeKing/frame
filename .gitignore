@@ -4,4 +4,6 @@ build/
 local.properties
 **/build/
 *.iml
-
+release.jks
+.env
+app/release
