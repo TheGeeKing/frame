@@ -62,6 +62,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
 
 @Composable
@@ -84,6 +86,8 @@ fun CameraScreen() {
     var lockedZoom by remember { mutableStateOf(0f) }
     var elapsedSeconds by remember { mutableStateOf(0L) }
     var showSettings by remember { mutableStateOf(false) }
+    var update by remember { mutableStateOf<AppUpdate?>(null) }
+    val updateManager = remember { UpdateManager(context.applicationContext) }
     val preferences = remember { context.getSharedPreferences("frame", android.content.Context.MODE_PRIVATE) }
     var zoomSensitivity by remember { mutableStateOf(preferences.getFloat("zoomSensitivity", 1f)) }
     val engine = remember { CameraEngine(context, owner, previewView, { captured = it }, { error = it }) }
@@ -99,6 +103,12 @@ fun CameraScreen() {
             delay(1_000)
             if (!paused) elapsedSeconds++
         }
+    }
+    LaunchedEffect(Unit) {
+        update = runCatching {
+            val version = context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
+            withContext(Dispatchers.IO) { updateManager.check(version) }
+        }.getOrNull()
     }
     LaunchedEffect(focusPoint) {
         if (focusPoint != null) {
@@ -152,12 +162,14 @@ fun CameraScreen() {
             Button(
                 onClick = { showSettings = !showSettings },
                 modifier = Modifier.align(Alignment.TopEnd).offset(x = (-16).dp, y = 24.dp),
-            ) { Text("⚙") }
+            ) { Text(if (update == null) "⚙" else "⚙ (1)") }
             if (showSettings) {
                 ZoomSettings(
                     zoomSensitivity,
                     onChange = { zoomSensitivity = it },
                     onFinished = { preferences.edit().putFloat("zoomSensitivity", zoomSensitivity).apply() },
+                    update = update,
+                    onUpdate = { update?.let(updateManager::install) },
                     modifier = Modifier.align(Alignment.TopEnd).offset(x = (-16).dp, y = 88.dp),
                 )
             }
@@ -285,6 +297,8 @@ private fun ZoomSettings(
     sensitivity: Float,
     onChange: (Float) -> Unit,
     onFinished: () -> Unit,
+    update: AppUpdate?,
+    onUpdate: () -> Unit,
     modifier: Modifier,
 ) {
     Column(modifier.width(220.dp).background(Color.Black.copy(alpha = .8f), RoundedCornerShape(16.dp)).padding(16.dp)) {
@@ -296,6 +310,9 @@ private fun ZoomSettings(
             steps = 5,
             onValueChangeFinished = onFinished,
         )
+        update?.let {
+            Button(onClick = onUpdate, modifier = Modifier.fillMaxWidth()) { Text("Update to ${it.version}") }
+        }
     }
 }
 
