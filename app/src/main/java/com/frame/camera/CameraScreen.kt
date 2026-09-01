@@ -139,13 +139,13 @@ fun CameraScreen() {
                         onTap = { focusPoint = it; engine.focus(it.x, it.y) },
                     )
                 }
-                .pointerInput(engine, locked, zoomSensitivity) {
-                    if (locked) {
-                        val zoomDistance = 600.dp.toPx() / zoomSensitivity
-                        detectTransformGestures { _, pan, zoom, _ ->
-                            lockedZoom = (lockedZoom - pan.y / zoomDistance + (zoom - 1f) * .25f * zoomSensitivity).coerceIn(0f, 1f)
-                            engine.setZoom(lockedZoom)
-                        }
+                .pointerInput(engine, zoomSensitivity) {
+                    val zoomDistance = 600.dp.toPx() / zoomSensitivity
+                    detectTransformGestures { _, pan, zoom, _ ->
+                        lockedZoom = (
+                            engine.currentLinearZoom() - pan.y / zoomDistance + (zoom - 1f) * .25f * zoomSensitivity
+                        ).coerceIn(0f, 1f)
+                        engine.setZoom(lockedZoom)
                     }
                 },
         )
