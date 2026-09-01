@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: Existing GitHub release tag to build and upload (for example Frame-v1.1.1)
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -13,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.sha }}
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -36,7 +44,7 @@ jobs:
         id: release
 
   publish:
-    if: github.event_name == 'push' && needs.release-please.outputs.release_created == 'true'
+    if: always() && !cancelled() && needs.check.result == 'success' && (github.event_name == 'workflow_dispatch' || needs.release-please.outputs.release_created == 'true')
     needs: [check, release-please]
     runs-on: ubuntu-latest
     permissions:
@@ -47,8 +55,11 @@ jobs:
       RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
       RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
       GH_TOKEN: ${{ github.token }}
+      TAG_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || needs.release-please.outputs.tag_name }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG_NAME }}
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -57,4 +68,4 @@ jobs:
       - run: echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 --decode > release.jks
       - run: ./gradlew bundleRelease
       - run: ./gradlew assembleRelease -PabiSplits=true
-      - run: gh release upload "${{ needs.release-please.outputs.tag_name }}" app/build/outputs/apk/release/*.apk app/build/outputs/bundle/release/*.aab
+      - run: gh release upload "$TAG_NAME" app/build/outputs/apk/release/*.apk app/build/outputs/bundle/release/*.aab --clobber
