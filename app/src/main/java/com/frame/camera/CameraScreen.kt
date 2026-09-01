@@ -46,6 +46,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,6 +64,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
 
@@ -120,10 +122,18 @@ fun CameraScreen() {
     captured?.let { media ->
         ReviewScreen(
             media,
-            onCopy = { copyMedia(context, media) },
-            onShare = { shareMedia(context, media) },
-            onSave = { publish(context, media); captured = null },
-            onDiscard = { discard(context, media); captured = null },
+            onCopy = { exported -> copyMedia(context, exported) },
+            onShare = { exported -> shareMedia(context, exported) },
+            onSave = { exported ->
+                if (exported.uri != media.uri) discard(context, media)
+                publish(context, exported)
+                captured = null
+            },
+            onDiscard = { silent ->
+                silent?.let { discard(context, it) }
+                discard(context, media)
+                captured = null
+            },
         )
         return
     }
@@ -392,26 +402,58 @@ private fun RecordingIndicator(seconds: Long, locked: Boolean, modifier: Modifie
 @Composable
 private fun ReviewScreen(
     media: CapturedMedia,
-    onCopy: () -> Unit,
-    onShare: () -> Unit,
-    onSave: () -> Unit,
-    onDiscard: () -> Unit,
+    onCopy: (CapturedMedia) -> Unit,
+    onShare: (CapturedMedia) -> Unit,
+    onSave: (CapturedMedia) -> Unit,
+    onDiscard: (CapturedMedia?) -> Unit,
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var muted by remember { mutableStateOf(false) }
+    var busy by remember { mutableStateOf(false) }
+    var silent by remember { mutableStateOf<CapturedMedia?>(null) }
+    var player by remember { mutableStateOf<android.media.MediaPlayer?>(null) }
+    LaunchedEffect(muted, player) {
+        val volume = if (muted) 0f else 1f
+        player?.setVolume(volume, volume)
+    }
+    fun export(action: (CapturedMedia) -> Unit) {
+        if (busy) return
+        if (!muted || media.kind != MediaKind.Video) {
+            action(media)
+            return
+        }
+        busy = true
+        scope.launch {
+            runCatching {
+                silent ?: withContext(Dispatchers.IO) { stripAudio(context, media) }.also { silent = it }
+            }.onSuccess(action).onFailure {
+                Toast.makeText(context, it.message ?: "Mute failed", Toast.LENGTH_SHORT).show()
+            }
+            busy = false
+        }
+    }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         if (media.kind == MediaKind.Video) {
             AndroidView(
-                factory = { context ->
-                    VideoView(context).apply {
+                factory = { viewContext ->
+                    VideoView(viewContext).apply {
                         setVideoURI(media.uri)
-                        setOnPreparedListener { it.isLooping = true; start() }
+                        setOnPreparedListener { prepared ->
+                            player = prepared
+                            prepared.isLooping = true
+                            val volume = if (muted) 0f else 1f
+                            prepared.setVolume(volume, volume)
+                            start()
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxSize(),
             )
         } else {
             AndroidView(
-                factory = { context ->
-                    ImageView(context).apply {
+                factory = { viewContext ->
+                    ImageView(viewContext).apply {
                         scaleType = ImageView.ScaleType.FIT_CENTER
                         setImageURI(media.uri)
                     }
@@ -420,9 +462,15 @@ private fun ReviewScreen(
             )
         }
         OutlinedButton(
-            onClick = onDiscard,
+            onClick = { onDiscard(silent) },
             modifier = Modifier.align(Alignment.TopStart).padding(start = 16.dp, top = 24.dp),
         ) { Text("✕  Discard") }
+        if (media.kind == MediaKind.Video) {
+            OutlinedButton(
+                onClick = { muted = !muted },
+                modifier = Modifier.align(Alignment.TopEnd).padding(end = 16.dp, top = 24.dp),
+            ) { Text(if (muted) "🔇  Muted" else "🔊  Sound") }
+        }
         Row(
             Modifier
                 .align(Alignment.BottomCenter)
@@ -432,9 +480,18 @@ private fun ReviewScreen(
                 .padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            OutlinedButton(onClick = onCopy, modifier = Modifier.weight(1f)) { Text("Copy") }
-            FilledTonalButton(onClick = onShare, modifier = Modifier.weight(1f)) { Text("Share") }
-            Button(onClick = onSave, modifier = Modifier.weight(1f)) { Text("Save") }
+            OutlinedButton(onClick = { export(onCopy) }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Copy") }
+            FilledTonalButton(onClick = { export(onShare) }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Share") }
+            Button(
+                onClick = {
+                    export { exported ->
+                        silent?.takeIf { it.uri != exported.uri }?.let { discard(context, it) }
+                        onSave(exported)
+                    }
+                },
+                enabled = !busy,
+                modifier = Modifier.weight(1f),
+            ) { Text("Save") }
         }
     }
 }

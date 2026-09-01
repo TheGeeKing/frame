@@ -4,8 +4,13 @@ import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
+import android.media.MediaCodec
+import android.media.MediaExtractor
+import android.media.MediaFormat
+import android.media.MediaMuxer
 import android.net.Uri
 import android.provider.MediaStore
+import java.nio.ByteBuffer
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
@@ -153,12 +158,67 @@ class CameraEngine(
         provider?.unbindAll()
     }
 
-    private fun mediaValues(kind: MediaKind) = ContentValues().apply {
-        val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-        put(MediaStore.MediaColumns.DISPLAY_NAME, "FRAME_$stamp.${kind.extension}")
-        put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/Frame")
-        put(MediaStore.MediaColumns.MIME_TYPE, kind.mimeType)
+    private fun mediaValues(kind: MediaKind) = captureMediaValues(kind)
+}
+
+fun captureMediaValues(kind: MediaKind) = ContentValues().apply {
+    val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+    put(MediaStore.MediaColumns.DISPLAY_NAME, "FRAME_$stamp.${kind.extension}")
+    put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/Frame")
+    put(MediaStore.MediaColumns.MIME_TYPE, kind.mimeType)
+}
+
+fun videoTrackIndex(mimeTypes: List<String?>): Int? =
+    mimeTypes.indexOfFirst { it?.startsWith("video/") == true }.takeIf { it >= 0 }
+
+fun stripAudio(context: Context, media: CapturedMedia): CapturedMedia {
+    if (media.kind != MediaKind.Video) return media
+    val values = captureMediaValues(MediaKind.Video).apply { put(MediaStore.MediaColumns.IS_PENDING, 1) }
+    val uri = context.contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
+        ?: error("Silent video URI missing")
+    runCatching {
+        val extractor = MediaExtractor()
+        try {
+            extractor.setDataSource(context, media.uri, null)
+            val track = videoTrackIndex((0 until extractor.trackCount).map { extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME) })
+                ?: error("Video track missing")
+            val format = extractor.getTrackFormat(track)
+            extractor.selectTrack(track)
+            context.contentResolver.openFileDescriptor(uri, "w")!!.use { pfd ->
+                val muxer = MediaMuxer(pfd.fileDescriptor, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+                val muxerTrack = muxer.addTrack(format)
+                if (format.containsKey(MediaFormat.KEY_ROTATION)) {
+                    muxer.setOrientationHint(format.getInteger(MediaFormat.KEY_ROTATION))
+                }
+                muxer.start()
+                val capacity = if (format.containsKey(MediaFormat.KEY_MAX_INPUT_SIZE)) {
+                    format.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE)
+                } else {
+                    1 shl 20
+                }
+                val buffer = ByteBuffer.allocate(capacity)
+                val info = MediaCodec.BufferInfo()
+                while (true) {
+                    val size = extractor.readSampleData(buffer, 0)
+                    if (size < 0) break
+                    info.offset = 0
+                    info.size = size
+                    info.presentationTimeUs = extractor.sampleTime
+                    info.flags = extractor.sampleFlags
+                    muxer.writeSampleData(muxerTrack, buffer, info)
+                    extractor.advance()
+                }
+                muxer.stop()
+                muxer.release()
+            }
+        } finally {
+            extractor.release()
+        }
+    }.onFailure {
+        context.contentResolver.delete(uri, null, null)
+        throw it
     }
+    return CapturedMedia(uri, MediaKind.Video)
 }
 
 fun publish(context: Context, media: CapturedMedia) {
