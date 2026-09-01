@@ -95,9 +95,14 @@ fun CameraScreen() {
     val engine = remember { CameraEngine(context, owner, previewView, { captured = it }, { error = it }) }
     val controller = remember { CaptureController() }
 
-    DisposableEffect(engine) {
-        engine.start()
-        onDispose(engine::close)
+    DisposableEffect(engine, captured) {
+        if (captured == null) {
+            engine.start()
+            onDispose(engine::close)
+        } else {
+            engine.close()
+            onDispose { }
+        }
     }
     LaunchedEffect(recording) {
         elapsedSeconds = 0
@@ -140,7 +145,10 @@ fun CameraScreen() {
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(
-            factory = { previewView },
+            factory = {
+                (previewView.parent as? ViewGroup)?.removeView(previewView)
+                previewView
+            },
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(engine) {

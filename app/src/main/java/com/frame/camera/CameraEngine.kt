@@ -50,7 +50,7 @@ class CameraEngine(
     private val onError: (String) -> Unit,
 ) {
     private val executor = ContextCompat.getMainExecutor(context)
-    private val preview = Preview.Builder().build().also { it.surfaceProvider = previewView.surfaceProvider }
+    private val preview = Preview.Builder().build()
     private val photo = ImageCapture.Builder().build()
     private val recorder = Recorder.Builder()
         .setQualitySelector(
@@ -67,26 +67,37 @@ class CameraEngine(
     private var camera: Camera? = null
     private var recording: Recording? = null
     private var front = false
+    private var active = false
 
     fun start() {
+        active = true
+        preview.setSurfaceProvider(previewView.surfaceProvider)
+        val existing = provider
+        if (existing != null) {
+            bind()
+            return
+        }
         ProcessCameraProvider.getInstance(context).also { future ->
             future.addListener({
                 provider = future.get()
-                bind()
+                if (active) bind()
             }, executor)
         }
     }
 
     private fun bind() {
+        if (!active) return
         val cameraProvider = provider ?: return
-        cameraProvider.unbindAll()
-        camera = cameraProvider.bindToLifecycle(
-            owner,
-            if (front) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA,
-            preview,
-            photo,
-            video,
-        )
+        runCatching {
+            cameraProvider.unbindAll()
+            camera = cameraProvider.bindToLifecycle(
+                owner,
+                if (front) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA,
+                preview,
+                photo,
+                video,
+            )
+        }.onFailure { onError(it.message ?: "Camera bind failed") }
     }
 
     fun switchCamera() {
@@ -127,7 +138,7 @@ class CameraEngine(
 
     @SuppressLint("UnsafeOptInUsageError")
     fun startRecording() {
-        if (recording != null) return
+        if (recording != null || camera == null) return
         val options = MediaStoreOutputOptions.Builder(
             context.contentResolver,
             MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
@@ -154,8 +165,12 @@ class CameraEngine(
     fun resumeRecording() = recording?.resume()
 
     fun close() {
+        active = false
         recording?.stop()
+        recording = null
+        preview.setSurfaceProvider(null)
         provider?.unbindAll()
+        camera = null
     }
 
     private fun mediaValues(kind: MediaKind) = captureMediaValues(kind)
