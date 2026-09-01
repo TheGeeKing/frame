@@ -186,6 +186,13 @@ fun captureMediaValues(kind: MediaKind) = ContentValues().apply {
 fun videoTrackIndex(mimeTypes: List<String?>): Int? =
     mimeTypes.indexOfFirst { it?.startsWith("video/") == true }.takeIf { it >= 0 }
 
+fun muxerBufferFlags(sampleFlags: Int): Int {
+    var flags = 0
+    if (sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC != 0) flags = flags or MediaCodec.BUFFER_FLAG_KEY_FRAME
+    if (sampleFlags and MediaExtractor.SAMPLE_FLAG_PARTIAL_FRAME != 0) flags = flags or MediaCodec.BUFFER_FLAG_PARTIAL_FRAME
+    return flags
+}
+
 fun stripAudio(context: Context, media: CapturedMedia): CapturedMedia {
     if (media.kind != MediaKind.Video) return media
     val values = captureMediaValues(MediaKind.Video).apply { put(MediaStore.MediaColumns.IS_PENDING, 1) }
@@ -219,7 +226,7 @@ fun stripAudio(context: Context, media: CapturedMedia): CapturedMedia {
                     info.offset = 0
                     info.size = size
                     info.presentationTimeUs = extractor.sampleTime
-                    info.flags = extractor.sampleFlags
+                    info.flags = muxerBufferFlags(extractor.sampleFlags)
                     muxer.writeSampleData(muxerTrack, buffer, info)
                     extractor.advance()
                 }
