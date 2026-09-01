@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0](https://github.com/TheGeeKing/frame/compare/Frame-v1.0.0...Frame-v1.1.0) (2026-09-01)
+
+
+### Features
+
+* **camera:** allow pinch and drag zoom before taking a photo ([35b3e48](https://github.com/TheGeeKing/frame/commit/35b3e48d65f433cd2e8c1d81af93a73d9eb5b9c8))
+* **camera:** mute video before copy, share, and save ([5be7e08](https://github.com/TheGeeKing/frame/commit/5be7e08160feaa17f0d1350b70460a4590a7afb3))
+
+
+### Bug Fixes
+
+* **camera:** map extractor flags to MediaCodec buffer flags ([dd2cbaf](https://github.com/TheGeeKing/frame/commit/dd2cbaf9a6c139053543ea116192d60e9004dcb8))
+* **camera:** unbind camera while reviewing a capture ([2f4fbaa](https://github.com/TheGeeKing/frame/commit/2f4fbaaf751d12ed817475f4098a7ad8224729a9))
+
 ## 1.0.0 (2026-08-30)
 
 
