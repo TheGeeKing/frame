@@ -55,5 +55,6 @@ jobs:
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
       - run: echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 --decode > release.jks
-      - run: ./gradlew bundleRelease assembleRelease -PabiSplits=true
+      - run: ./gradlew bundleRelease
+      - run: ./gradlew assembleRelease -PabiSplits=true
       - run: gh release upload "${{ needs.release-please.outputs.tag_name }}" app/build/outputs/apk/release/*.apk app/build/outputs/bundle/release/*.aab
