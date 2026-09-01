@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/TheGeeKing/frame/compare/Frame-v1.1.0...Frame-v1.1.1) (2026-09-01)
+
+
+### Bug Fixes
+
+* **updater:** parse Frame-v GitHub release tags ([ac06c1d](https://github.com/TheGeeKing/frame/commit/ac06c1d4a4ce58b1f7d21fb9ed319c6a3a73db8c))
+
 ## [1.1.0](https://github.com/TheGeeKing/frame/compare/Frame-v1.0.0...Frame-v1.1.0) (2026-09-01)
 
 
