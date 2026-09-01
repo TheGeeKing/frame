@@ -8,8 +8,8 @@ import kotlin.test.assertTrue
 class UpdateManagerTest {
     @Test
     fun `newer semantic release is available`() {
-        assertTrue(isNewerVersion("1.10.0", "1.9.9"))
-        assertFalse(isNewerVersion("1.2.0", "1.2.0"))
+        assertTrue(isNewerVersion("Frame-v1.1.0", "1.0.0"))
+        assertFalse(isNewerVersion("Frame-v1.1.0", "1.1.0"))
         assertFalse(isNewerVersion("1.2.0", "2.0.0"))
     }
 

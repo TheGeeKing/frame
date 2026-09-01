@@ -14,9 +14,14 @@ import java.net.URL
 data class ReleaseAsset(val name: String, val url: String)
 data class AppUpdate(val version: String, val asset: ReleaseAsset)
 
+private val VERSION_PATTERN = Regex("""\d+(?:\.\d+)*""")
+
+fun versionParts(version: String): List<Int> =
+    VERSION_PATTERN.find(version)?.value.orEmpty().split('.').map { it.toIntOrNull() ?: 0 }
+
 fun isNewerVersion(latest: String, current: String): Boolean {
-    val latestParts = latest.removePrefix("v").substringBefore('-').split('.').map { it.toIntOrNull() ?: 0 }
-    val currentParts = current.removePrefix("v").substringBefore('-').split('.').map { it.toIntOrNull() ?: 0 }
+    val latestParts = versionParts(latest)
+    val currentParts = versionParts(current)
     repeat(maxOf(latestParts.size, currentParts.size)) { index ->
         val comparison = (latestParts.getOrElse(index) { 0 }).compareTo(currentParts.getOrElse(index) { 0 })
         if (comparison != 0) return comparison > 0
