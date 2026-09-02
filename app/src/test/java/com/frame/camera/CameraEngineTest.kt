@@ -38,4 +38,10 @@ class CameraEngineTest {
         assertEquals(1.2f, defaultZoomRatio(min = 1.2f, max = 5f))
         assertEquals(.8f, defaultZoomRatio(min = .5f, max = .8f))
     }
+
+    @Test
+    fun `flash mode fires only when capture flash is enabled`() {
+        assertEquals(ImageCapture.FLASH_MODE_OFF, captureFlashMode(enabled = false))
+        assertEquals(ImageCapture.FLASH_MODE_ON, captureFlashMode(enabled = true))
+    }
 }

@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
@@ -88,6 +89,7 @@ fun CameraScreen() {
     var lockedZoom by remember { mutableStateOf(0f) }
     var elapsedSeconds by remember { mutableStateOf(0L) }
     var showSettings by remember { mutableStateOf(false) }
+    var flashEnabled by remember { mutableStateOf(false) }
     var update by remember { mutableStateOf<AppUpdate?>(null) }
     val updateManager = remember { UpdateManager(context.applicationContext) }
     val preferences = remember { context.getSharedPreferences("frame", android.content.Context.MODE_PRIVATE) }
@@ -178,10 +180,23 @@ fun CameraScreen() {
         if (recording) {
             RecordingIndicator(elapsedSeconds, locked, Modifier.align(Alignment.TopCenter).offset(y = 28.dp))
         } else {
-            Button(
-                onClick = { showSettings = !showSettings },
-                modifier = Modifier.align(Alignment.TopEnd).offset(x = (-16).dp, y = 24.dp),
-            ) { Text(if (update == null) "⚙" else "⚙ (1)") }
+            Row(
+                Modifier.align(Alignment.TopEnd).offset(x = (-16).dp, y = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Button(
+                    onClick = {
+                        flashEnabled = !flashEnabled
+                        engine.setFlashEnabled(flashEnabled)
+                    },
+                    colors = if (flashEnabled) {
+                        ButtonDefaults.buttonColors(containerColor = Color(0xFFFFC107), contentColor = Color.Black)
+                    } else {
+                        ButtonDefaults.buttonColors()
+                    },
+                ) { Text("🔦") }
+                Button(onClick = { showSettings = !showSettings }) { Text(if (update == null) "⚙" else "⚙ (1)") }
+            }
             if (showSettings) {
                 ZoomSettings(
                     zoomSensitivity,

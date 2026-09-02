@@ -72,6 +72,7 @@ class CameraEngine(
     private var front = false
     private var active = false
     private var userLinearZoom: Float? = null
+    private var flashEnabled = false
     private val onPreviewLayout = View.OnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
         if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) bind()
     }
@@ -104,6 +105,7 @@ class CameraEngine(
                 captureUseCaseGroup(preview, photo, video, previewView.viewPort),
             )
             applyZoom()
+            applyFlash()
         }.onFailure { onError(it.message ?: "Camera bind failed") }
     }
 
@@ -132,6 +134,18 @@ class CameraEngine(
     }
 
     fun currentLinearZoom(): Float = camera?.cameraInfo?.zoomState?.value?.linearZoom ?: 0f
+
+    fun setFlashEnabled(enabled: Boolean) {
+        flashEnabled = enabled
+        applyFlash()
+    }
+
+    private fun applyFlash() {
+        photo.flashMode = captureFlashMode(flashEnabled)
+        val cam = camera ?: return
+        if (!cam.cameraInfo.hasFlashUnit()) return
+        cam.cameraControl.enableTorch(flashEnabled && recording != null)
+    }
 
     fun focus(x: Float, y: Float) {
         val point = previewView.meteringPointFactory.createPoint(x, y)
@@ -172,10 +186,12 @@ class CameraEngine(
         recording = pending.start(executor) { event ->
             if (event is VideoRecordEvent.Finalize) {
                 recording = null
+                applyFlash()
                 if (event.hasError()) onError(event.cause?.message ?: "Recording failed")
                 else onCaptured(CapturedMedia(event.outputResults.outputUri, MediaKind.Video))
             }
         }
+        applyFlash()
     }
 
     fun stopRecording() {
@@ -199,6 +215,9 @@ class CameraEngine(
 
     private fun mediaValues(kind: MediaKind) = captureMediaValues(kind)
 }
+
+fun captureFlashMode(enabled: Boolean): Int =
+    if (enabled) ImageCapture.FLASH_MODE_ON else ImageCapture.FLASH_MODE_OFF
 
 fun defaultZoomRatio(min: Float, max: Float): Float = 1f.coerceIn(min, max)
 
