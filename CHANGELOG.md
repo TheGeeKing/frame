@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0](https://github.com/TheGeeKing/frame/compare/Frame-v1.1.1...Frame-v1.2.0) (2026-09-02)
+
+
+### Features
+
+* **camera:** add a flash toggle for photos and recordings ([5f7c9bf](https://github.com/TheGeeKing/frame/commit/5f7c9bfa62e3bb418f0483fd6ed858f9d146c2eb))
+
+
+### Bug Fixes
+
+* **camera:** crop captures to the preview and open at 1x ([799d3c7](https://github.com/TheGeeKing/frame/commit/799d3c71f6d4772a7c881f1324e4e89ef83c8156))
+
 ## [1.1.1](https://github.com/TheGeeKing/frame/compare/Frame-v1.1.0...Frame-v1.1.1) (2026-09-01)
 
 
