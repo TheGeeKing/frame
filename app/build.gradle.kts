@@ -78,4 +78,5 @@ dependencies {
 
     debugImplementation("androidx.compose.ui:ui-tooling:1.11.4")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit")
+    testImplementation("org.robolectric:robolectric:4.15.1")
 }

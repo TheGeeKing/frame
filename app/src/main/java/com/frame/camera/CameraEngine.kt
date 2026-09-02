@@ -11,6 +11,7 @@ import android.media.MediaMuxer
 import android.net.Uri
 import android.provider.MediaStore
 import java.nio.ByteBuffer
+import android.view.View
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
@@ -18,6 +19,8 @@ import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.MirrorMode
 import androidx.camera.core.Preview
+import androidx.camera.core.UseCaseGroup
+import androidx.camera.core.ViewPort
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FallbackStrategy
 import androidx.camera.video.MediaStoreOutputOptions
@@ -68,10 +71,15 @@ class CameraEngine(
     private var recording: Recording? = null
     private var front = false
     private var active = false
+    private var userLinearZoom: Float? = null
+    private val onPreviewLayout = View.OnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+        if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) bind()
+    }
 
     fun start() {
         active = true
         preview.setSurfaceProvider(previewView.surfaceProvider)
+        previewView.addOnLayoutChangeListener(onPreviewLayout)
         val existing = provider
         if (existing != null) {
             bind()
@@ -93,20 +101,34 @@ class CameraEngine(
             camera = cameraProvider.bindToLifecycle(
                 owner,
                 if (front) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA,
-                preview,
-                photo,
-                video,
+                captureUseCaseGroup(preview, photo, video, previewView.viewPort),
             )
+            applyZoom()
         }.onFailure { onError(it.message ?: "Camera bind failed") }
     }
 
     fun switchCamera() {
         front = !front
+        userLinearZoom = null
         runCatching(::bind).onFailure { onError(it.message ?: "Camera switch failed") }
     }
 
     fun setZoom(linearZoom: Float) {
+        userLinearZoom = linearZoom
         camera?.cameraControl?.setLinearZoom(linearZoom)
+    }
+
+    private fun applyZoom() {
+        val cam = camera ?: return
+        val requested = userLinearZoom
+        if (requested != null) {
+            cam.cameraControl.setLinearZoom(requested)
+            return
+        }
+        val zoom = cam.cameraInfo.zoomState.value
+        cam.cameraControl.setZoomRatio(
+            defaultZoomRatio(zoom?.minZoomRatio ?: 1f, zoom?.maxZoomRatio ?: 1f),
+        )
     }
 
     fun currentLinearZoom(): Float = camera?.cameraInfo?.zoomState?.value?.linearZoom ?: 0f
@@ -168,12 +190,30 @@ class CameraEngine(
         active = false
         recording?.stop()
         recording = null
+        previewView.removeOnLayoutChangeListener(onPreviewLayout)
         preview.setSurfaceProvider(null)
         provider?.unbindAll()
         camera = null
+        userLinearZoom = null
     }
 
     private fun mediaValues(kind: MediaKind) = captureMediaValues(kind)
+}
+
+fun defaultZoomRatio(min: Float, max: Float): Float = 1f.coerceIn(min, max)
+
+fun captureUseCaseGroup(
+    preview: Preview,
+    photo: ImageCapture,
+    video: VideoCapture<Recorder>,
+    viewPort: ViewPort?,
+): UseCaseGroup {
+    val group = UseCaseGroup.Builder()
+        .addUseCase(preview)
+        .addUseCase(photo)
+        .addUseCase(video)
+    if (viewPort != null) group.setViewPort(viewPort)
+    return group.build()
 }
 
 fun captureMediaValues(kind: MediaKind) = ContentValues().apply {
