@@ -376,8 +376,8 @@ private fun ZoomSettings(
         Slider(
             value = sensitivity,
             onValueChange = onChange,
-            valueRange = .5f..2f,
-            steps = 5,
+            valueRange = .5f..3f,
+            steps = 9,
             onValueChangeFinished = onFinished,
         )
         update?.let {
