@@ -43,6 +43,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -105,6 +106,7 @@ fun CameraScreen() {
     val updateManager = remember { UpdateManager(context.applicationContext) }
     val preferences = remember { context.getSharedPreferences("frame", android.content.Context.MODE_PRIVATE) }
     var zoomSensitivity by remember { mutableStateOf(preferences.getFloat("zoomSensitivity", 1f)) }
+    var autoMuteReplay by remember { mutableStateOf(preferences.getBoolean("autoMuteReplay", false)) }
     val engine = remember { CameraEngine(context, owner, previewView, { captured = it }, { error = it }) }
     val controller = remember { CaptureController() }
 
@@ -140,6 +142,7 @@ fun CameraScreen() {
     captured?.let { media ->
         ReviewScreen(
             media,
+            autoMuteReplay = autoMuteReplay,
             onCopy = { exported -> copyMedia(context, exported) },
             onShare = { exported -> shareMedia(context, exported) },
             onSave = { exported ->
@@ -214,6 +217,11 @@ fun CameraScreen() {
                     zoomSensitivity,
                     onChange = { zoomSensitivity = it },
                     onFinished = { preferences.edit().putFloat("zoomSensitivity", zoomSensitivity).apply() },
+                    autoMuteReplay = autoMuteReplay,
+                    onAutoMuteReplayChange = {
+                        autoMuteReplay = it
+                        preferences.edit().putBoolean("autoMuteReplay", it).apply()
+                    },
                     update = update,
                     onUpdate = { update?.let(updateManager::install) },
                     modifier = Modifier.align(Alignment.TopEnd).windowInsetsPadding(WindowInsets.safeDrawing).padding(top = 72.dp, end = 16.dp),
@@ -366,6 +374,8 @@ private fun ZoomSettings(
     sensitivity: Float,
     onChange: (Float) -> Unit,
     onFinished: () -> Unit,
+    autoMuteReplay: Boolean,
+    onAutoMuteReplayChange: (Boolean) -> Unit,
     update: AppUpdate?,
     onUpdate: () -> Unit,
     modifier: Modifier,
@@ -380,6 +390,17 @@ private fun ZoomSettings(
             steps = 9,
             onValueChangeFinished = onFinished,
         )
+        Row(
+            Modifier.fillMaxWidth().padding(top = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                Text("Mute replay", color = Ink, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                Text("Shared and saved videos keep their sound", color = Color(0xFF6F6D67), fontSize = 11.sp, lineHeight = 15.sp)
+            }
+            Switch(checked = autoMuteReplay, onCheckedChange = onAutoMuteReplayChange)
+        }
         update?.let {
             Button(
                 onClick = onUpdate,
@@ -466,6 +487,7 @@ private fun RecordingIndicator(seconds: Long, locked: Boolean, modifier: Modifie
 @Composable
 private fun ReviewScreen(
     media: CapturedMedia,
+    autoMuteReplay: Boolean,
     onCopy: (CapturedMedia) -> Unit,
     onShare: (CapturedMedia) -> Unit,
     onSave: (CapturedMedia) -> Unit,
@@ -473,7 +495,8 @@ private fun ReviewScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var muted by remember { mutableStateOf(false) }
+    var muted by remember(media.uri) { mutableStateOf(autoMuteReplay && media.kind == MediaKind.Video) }
+    var stripAudioOnExport by remember(media.uri) { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var silent by remember { mutableStateOf<CapturedMedia?>(null) }
     var player by remember { mutableStateOf<android.media.MediaPlayer?>(null) }
@@ -483,7 +506,7 @@ private fun ReviewScreen(
     }
     fun export(action: (CapturedMedia) -> Unit) {
         if (busy) return
-        if (!muted || media.kind != MediaKind.Video) {
+        if (!stripAudioOnExport || media.kind != MediaKind.Video) {
             action(media)
             return
         }
@@ -533,11 +556,22 @@ private fun ReviewScreen(
         ) { Text("Discard") }
         if (media.kind == MediaKind.Video) {
             Button(
-                onClick = { muted = !muted },
+                onClick = {
+                    muted = !muted
+                    stripAudioOnExport = muted
+                },
                 modifier = Modifier.align(Alignment.TopEnd).windowInsetsPadding(WindowInsets.safeDrawing).padding(16.dp),
                 shape = RoundedCornerShape(6.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = if (muted) Paper else Ink.copy(alpha = .88f), contentColor = if (muted) Ink else Color.White),
-            ) { Text(if (muted) "Muted" else "Sound on") }
+            ) {
+                Text(
+                    when {
+                        !muted -> "Sound on"
+                        stripAudioOnExport -> "Video muted"
+                        else -> "Replay muted"
+                    },
+                )
+            }
         }
         Row(
             Modifier
