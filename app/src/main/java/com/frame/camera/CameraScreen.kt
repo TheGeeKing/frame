@@ -33,6 +33,9 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -41,6 +44,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -59,6 +63,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -68,6 +74,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
+
+private val Ink = Color(0xFF171715)
+private val Paper = Color(0xFFF7F6F2)
+private val Hairline = Color(0xFFE7E5DF)
+private val RecordRed = Color(0xFFC94B43)
 
 @Composable
 fun CameraScreen() {
@@ -145,7 +156,7 @@ fun CameraScreen() {
         return
     }
 
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
+    Box(Modifier.fillMaxSize().background(Ink)) {
         AndroidView(
             factory = {
                 (previewView.parent as? ViewGroup)?.removeView(previewView)
@@ -181,21 +192,22 @@ fun CameraScreen() {
             RecordingIndicator(elapsedSeconds, locked, Modifier.align(Alignment.TopCenter).offset(y = 28.dp))
         } else {
             Row(
-                Modifier.align(Alignment.TopEnd).offset(x = (-16).dp, y = 24.dp),
+                Modifier.align(Alignment.TopEnd).windowInsetsPadding(WindowInsets.safeDrawing).padding(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Button(
+                UtilityButton(
+                    label = if (flashEnabled) "Flash on" else "Flash",
+                    selected = flashEnabled,
                     onClick = {
                         flashEnabled = !flashEnabled
                         engine.setFlashEnabled(flashEnabled)
                     },
-                    colors = if (flashEnabled) {
-                        ButtonDefaults.buttonColors(containerColor = Color(0xFFFFC107), contentColor = Color.Black)
-                    } else {
-                        ButtonDefaults.buttonColors()
-                    },
-                ) { Text("🔦") }
-                Button(onClick = { showSettings = !showSettings }) { Text(if (update == null) "⚙" else "⚙ (1)") }
+                )
+                UtilityButton(
+                    label = if (update == null) "Settings" else "Settings · 1",
+                    selected = showSettings,
+                    onClick = { showSettings = !showSettings },
+                )
             }
             if (showSettings) {
                 ZoomSettings(
@@ -204,7 +216,7 @@ fun CameraScreen() {
                     onFinished = { preferences.edit().putFloat("zoomSensitivity", zoomSensitivity).apply() },
                     update = update,
                     onUpdate = { update?.let(updateManager::install) },
-                    modifier = Modifier.align(Alignment.TopEnd).offset(x = (-16).dp, y = 88.dp),
+                    modifier = Modifier.align(Alignment.TopEnd).windowInsetsPadding(WindowInsets.safeDrawing).padding(top = 72.dp, end = 16.dp),
                 )
             }
         }
@@ -245,7 +257,30 @@ fun CameraScreen() {
             onZoomChange = { lockedZoom = it },
             modifier = Modifier.align(Alignment.BottomCenter).offset(y = (-48).dp),
         )
-        error?.let { Text(it, color = Color.White, modifier = Modifier.align(Alignment.TopCenter).offset(y = 24.dp)) }
+        error?.let {
+            Text(
+                it,
+                color = Ink,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.align(Alignment.TopCenter).windowInsetsPadding(WindowInsets.safeDrawing)
+                    .padding(16.dp).background(Paper, RoundedCornerShape(6.dp)).padding(horizontal = 14.dp, vertical = 10.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun UtilityButton(label: String, selected: Boolean, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        shape = RoundedCornerShape(6.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (selected) Paper else Ink.copy(alpha = .88f),
+            contentColor = if (selected) Ink else Color.White,
+        ),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+    ) {
+        Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, letterSpacing = .2.sp)
     }
 }
 
@@ -265,11 +300,11 @@ private fun CaptureButton(
     val lockSideDistance = with(LocalDensity.current) { 82.dp.toPx() }
     val lockVerticalTolerance = with(LocalDensity.current) { 64.dp.toPx() }
     val zoomDistance = with(LocalDensity.current) { 600.dp.toPx() } / zoomSensitivity
-    val ringColor by animateColorAsState(if (recording) Color.Red else Color.White, label = "capture ring")
+    val ringColor by animateColorAsState(if (recording) RecordRed else Color.White, label = "capture ring")
     Box(
         modifier
             .size(84.dp)
-            .background(Color.White.copy(alpha = .35f), CircleShape)
+            .background(Ink.copy(alpha = .52f), CircleShape)
             .pointerInput(controller, engine) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
@@ -321,7 +356,7 @@ private fun CaptureButton(
             .border(4.dp, ringColor, CircleShape),
     ) {
         if (locked) {
-            Box(Modifier.align(Alignment.Center).size(28.dp).background(Color.Red, RoundedCornerShape(5.dp)))
+            Box(Modifier.align(Alignment.Center).size(28.dp).background(RecordRed, RoundedCornerShape(5.dp)))
         }
     }
 }
@@ -335,8 +370,9 @@ private fun ZoomSettings(
     onUpdate: () -> Unit,
     modifier: Modifier,
 ) {
-    Column(modifier.width(220.dp).background(Color.Black.copy(alpha = .8f), RoundedCornerShape(16.dp)).padding(16.dp)) {
-        Text("Zoom sensitivity %.2f×".format(sensitivity), color = Color.White)
+    Column(modifier.width(236.dp).background(Paper, RoundedCornerShape(10.dp)).border(1.dp, Hairline, RoundedCornerShape(10.dp)).padding(18.dp)) {
+        Text("Camera controls", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+        Text("Zoom sensitivity · %.2f×".format(sensitivity), color = Color(0xFF6F6D67), fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
         Slider(
             value = sensitivity,
             onValueChange = onChange,
@@ -345,7 +381,12 @@ private fun ZoomSettings(
             onValueChangeFinished = onFinished,
         )
         update?.let {
-            Button(onClick = onUpdate, modifier = Modifier.fillMaxWidth()) { Text("Update to ${it.version}") }
+            Button(
+                onClick = onUpdate,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(6.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Ink, contentColor = Color.White),
+            ) { Text("Update to ${it.version}") }
         }
     }
 }
@@ -358,12 +399,12 @@ private fun LockTarget(visible: Boolean, locked: Boolean, modifier: Modifier) {
         enter = fadeIn() + scaleIn(initialScale = .65f),
         exit = fadeOut() + scaleOut(targetScale = .65f),
     ) {
-        val color by animateColorAsState(if (locked) Color.Red else Color.Black.copy(alpha = .65f), label = "lock target")
+        val color by animateColorAsState(if (locked) RecordRed else Ink.copy(alpha = .84f), label = "lock target")
         Box(
             Modifier.size(58.dp).background(color, CircleShape).border(3.dp, Color.White, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Text(if (locked) "✓" else "🔒", color = Color.White)
+            Text(if (locked) "LOCKED" else "LOCK", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = .5.sp)
         }
     }
 }
@@ -376,7 +417,7 @@ private fun PauseTarget(visible: Boolean, paused: Boolean, locked: Boolean, onCl
         enter = fadeIn() + scaleIn(initialScale = .65f),
         exit = fadeOut() + scaleOut(targetScale = .65f),
     ) {
-        val color by animateColorAsState(if (paused) Color.Red else Color.Black.copy(alpha = .65f), label = "pause target")
+        val color by animateColorAsState(if (paused) RecordRed else Ink.copy(alpha = .84f), label = "pause target")
         Box(
             Modifier
                 .size(58.dp)
@@ -385,7 +426,7 @@ private fun PauseTarget(visible: Boolean, paused: Boolean, locked: Boolean, onCl
                 .clickable(enabled = locked, onClick = onClick),
             contentAlignment = Alignment.Center,
         ) {
-            Text(if (paused) "▶" else "Ⅱ", color = Color.White)
+            Text(if (paused) "RESUME" else "PAUSE", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold, letterSpacing = .3.sp)
         }
     }
 }
@@ -410,12 +451,12 @@ private fun perform(
 @Composable
 private fun RecordingIndicator(seconds: Long, locked: Boolean, modifier: Modifier) {
     Row(
-        modifier.background(Color.Black.copy(alpha = .6f), RoundedCornerShape(18.dp)).padding(horizontal = 12.dp, vertical = 8.dp),
+        modifier.background(Ink.copy(alpha = .88f), RoundedCornerShape(6.dp)).padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(16.dp).background(Color.Red, CircleShape))
+        Box(Modifier.size(9.dp).background(RecordRed, CircleShape))
         Text(
-            "%02d:%02d%s".format(seconds / 60, seconds % 60, if (locked) "  🔒" else ""),
+            "%02d:%02d%s".format(seconds / 60, seconds % 60, if (locked) "  · LOCKED" else ""),
             color = Color.White,
             modifier = Modifier.padding(start = 8.dp),
         )
@@ -484,27 +525,33 @@ private fun ReviewScreen(
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        OutlinedButton(
+        Button(
             onClick = { onDiscard(silent) },
-            modifier = Modifier.align(Alignment.TopStart).padding(start = 16.dp, top = 24.dp),
-        ) { Text("✕  Discard") }
+            modifier = Modifier.align(Alignment.TopStart).windowInsetsPadding(WindowInsets.safeDrawing).padding(16.dp),
+            shape = RoundedCornerShape(6.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Ink.copy(alpha = .88f), contentColor = Color.White),
+        ) { Text("Discard") }
         if (media.kind == MediaKind.Video) {
-            OutlinedButton(
+            Button(
                 onClick = { muted = !muted },
-                modifier = Modifier.align(Alignment.TopEnd).padding(end = 16.dp, top = 24.dp),
-            ) { Text(if (muted) "🔇  Muted" else "🔊  Sound") }
+                modifier = Modifier.align(Alignment.TopEnd).windowInsetsPadding(WindowInsets.safeDrawing).padding(16.dp),
+                shape = RoundedCornerShape(6.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = if (muted) Paper else Ink.copy(alpha = .88f), contentColor = if (muted) Ink else Color.White),
+            ) { Text(if (muted) "Muted" else "Sound on") }
         }
         Row(
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(16.dp)
-                .background(Color.Black.copy(alpha = .72f), RoundedCornerShape(24.dp))
-                .padding(12.dp),
+                .background(Paper, RoundedCornerShape(10.dp))
+                .border(1.dp, Hairline, RoundedCornerShape(10.dp))
+                .padding(10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            OutlinedButton(onClick = { export(onCopy) }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Copy") }
-            FilledTonalButton(onClick = { export(onShare) }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Share") }
+            OutlinedButton(onClick = { export(onCopy) }, enabled = !busy, modifier = Modifier.weight(1f), shape = RoundedCornerShape(6.dp)) { Text("Copy") }
+            FilledTonalButton(onClick = { export(onShare) }, enabled = !busy, modifier = Modifier.weight(1f), shape = RoundedCornerShape(6.dp)) { Text("Share") }
             Button(
                 onClick = {
                     export { exported ->
@@ -514,6 +561,8 @@ private fun ReviewScreen(
                 },
                 enabled = !busy,
                 modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(6.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Ink, contentColor = Color.White),
             ) { Text("Save") }
         }
     }
