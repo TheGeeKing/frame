@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.3.0](https://github.com/TheGeeKing/frame/compare/Frame-v1.2.0...Frame-v1.3.0) (2026-09-05)
+
+
+### Features
+
+* **camera:** add automatic replay muting ([8dff2f7](https://github.com/TheGeeKing/frame/commit/8dff2f7edaac5a80c8faf706cb6b6442163a3677))
+* **camera:** increase zoom sensitivity limit to 3x ([b5eeecd](https://github.com/TheGeeKing/frame/commit/b5eeecda90836d1d18f833bd034e1efc203ed2a9))
+* **ui:** refine camera interface and improve control visibility ([c4cfeb0](https://github.com/TheGeeKing/frame/commit/c4cfeb079c65c8d83c098a074badc46987b2be10))
+
 ## [1.2.0](https://github.com/TheGeeKing/frame/compare/Frame-v1.1.1...Frame-v1.2.0) (2026-09-02)
 
 
