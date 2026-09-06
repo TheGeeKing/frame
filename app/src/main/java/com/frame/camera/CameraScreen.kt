@@ -76,11 +76,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
 
-private val Ink = Color(0xFF171715)
-private val Paper = Color(0xFFF7F6F2)
-private val Hairline = Color(0xFFE7E5DF)
-private val RecordRed = Color(0xFFC94B43)
-
 @Composable
 fun CameraScreen() {
     val context = LocalContext.current
@@ -159,7 +154,7 @@ fun CameraScreen() {
         return
     }
 
-    Box(Modifier.fillMaxSize().background(Ink)) {
+    Box(Modifier.fillMaxSize().background(Colors.Ink)) {
         AndroidView(
             factory = {
                 (previewView.parent as? ViewGroup)?.removeView(previewView)
@@ -268,10 +263,10 @@ fun CameraScreen() {
         error?.let {
             Text(
                 it,
-                color = Ink,
+                color = Colors.Ink,
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.align(Alignment.TopCenter).windowInsetsPadding(WindowInsets.safeDrawing)
-                    .padding(16.dp).background(Paper, RoundedCornerShape(6.dp)).padding(horizontal = 14.dp, vertical = 10.dp),
+                    .padding(16.dp).background(Colors.Paper, RoundedCornerShape(6.dp)).padding(horizontal = 14.dp, vertical = 10.dp),
             )
         }
     }
@@ -283,8 +278,8 @@ private fun UtilityButton(label: String, selected: Boolean, onClick: () -> Unit)
         onClick = onClick,
         shape = RoundedCornerShape(6.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (selected) Paper else Ink.copy(alpha = .88f),
-            contentColor = if (selected) Ink else Color.White,
+            containerColor = if (selected) Colors.Paper else Colors.Ink.copy(alpha = .88f),
+            contentColor = if (selected) Colors.Ink else Color.White,
         ),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 10.dp),
     ) {
@@ -308,11 +303,11 @@ private fun CaptureButton(
     val lockSideDistance = with(LocalDensity.current) { 82.dp.toPx() }
     val lockVerticalTolerance = with(LocalDensity.current) { 64.dp.toPx() }
     val zoomDistance = with(LocalDensity.current) { 600.dp.toPx() } / zoomSensitivity
-    val ringColor by animateColorAsState(if (recording) RecordRed else Color.White, label = "capture ring")
+    val ringColor by animateColorAsState(if (recording) Colors.RecordRed else Color.White, label = "capture ring")
     Box(
         modifier
             .size(84.dp)
-            .background(Ink.copy(alpha = .52f), CircleShape)
+            .background(Colors.Ink.copy(alpha = .52f), CircleShape)
             .pointerInput(controller, engine) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
@@ -364,7 +359,7 @@ private fun CaptureButton(
             .border(4.dp, ringColor, CircleShape),
     ) {
         if (locked) {
-            Box(Modifier.align(Alignment.Center).size(28.dp).background(RecordRed, RoundedCornerShape(5.dp)))
+            Box(Modifier.align(Alignment.Center).size(28.dp).background(Colors.RecordRed, RoundedCornerShape(5.dp)))
         }
     }
 }
@@ -380,9 +375,9 @@ private fun ZoomSettings(
     onUpdate: () -> Unit,
     modifier: Modifier,
 ) {
-    Column(modifier.width(236.dp).background(Paper, RoundedCornerShape(10.dp)).border(1.dp, Hairline, RoundedCornerShape(10.dp)).padding(18.dp)) {
-        Text("Camera controls", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-        Text("Zoom sensitivity · %.2f×".format(sensitivity), color = Color(0xFF6F6D67), fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+    Column(modifier.width(236.dp).background(Colors.Paper, RoundedCornerShape(10.dp)).border(1.dp, Colors.Hairline, RoundedCornerShape(10.dp)).padding(18.dp)) {
+        Text("Camera controls", color = Colors.Ink, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+        Text("Zoom sensitivity · %.2f×".format(sensitivity), color = Colors.Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
         Slider(
             value = sensitivity,
             onValueChange = onChange,
@@ -396,8 +391,8 @@ private fun ZoomSettings(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f).padding(end = 12.dp)) {
-                Text("Mute replay", color = Ink, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                Text("Shared and saved videos keep their sound", color = Color(0xFF6F6D67), fontSize = 11.sp, lineHeight = 15.sp)
+                Text("Mute replay", color = Colors.Ink, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                Text("Shared and saved videos keep their sound", color = Colors.Muted, fontSize = 11.sp, lineHeight = 15.sp)
             }
             Switch(checked = autoMuteReplay, onCheckedChange = onAutoMuteReplayChange)
         }
@@ -406,7 +401,7 @@ private fun ZoomSettings(
                 onClick = onUpdate,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(6.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Ink, contentColor = Color.White),
+                colors = ButtonDefaults.buttonColors(containerColor = Colors.Ink, contentColor = Color.White),
             ) { Text("Update to ${it.version}") }
         }
     }
@@ -420,7 +415,7 @@ private fun LockTarget(visible: Boolean, locked: Boolean, modifier: Modifier) {
         enter = fadeIn() + scaleIn(initialScale = .65f),
         exit = fadeOut() + scaleOut(targetScale = .65f),
     ) {
-        val color by animateColorAsState(if (locked) RecordRed else Ink.copy(alpha = .84f), label = "lock target")
+        val color by animateColorAsState(if (locked) Colors.RecordRed else Colors.Ink.copy(alpha = .84f), label = "lock target")
         Box(
             Modifier.size(58.dp).background(color, CircleShape).border(3.dp, Color.White, CircleShape),
             contentAlignment = Alignment.Center,
@@ -438,7 +433,7 @@ private fun PauseTarget(visible: Boolean, paused: Boolean, locked: Boolean, onCl
         enter = fadeIn() + scaleIn(initialScale = .65f),
         exit = fadeOut() + scaleOut(targetScale = .65f),
     ) {
-        val color by animateColorAsState(if (paused) RecordRed else Ink.copy(alpha = .84f), label = "pause target")
+        val color by animateColorAsState(if (paused) Colors.RecordRed else Colors.Ink.copy(alpha = .84f), label = "pause target")
         Box(
             Modifier
                 .size(58.dp)
@@ -472,10 +467,10 @@ private fun perform(
 @Composable
 private fun RecordingIndicator(seconds: Long, locked: Boolean, modifier: Modifier) {
     Row(
-        modifier.background(Ink.copy(alpha = .88f), RoundedCornerShape(6.dp)).padding(horizontal = 12.dp, vertical = 8.dp),
+        modifier.background(Colors.Ink.copy(alpha = .88f), RoundedCornerShape(6.dp)).padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(9.dp).background(RecordRed, CircleShape))
+        Box(Modifier.size(9.dp).background(Colors.RecordRed, CircleShape))
         Text(
             "%02d:%02d%s".format(seconds / 60, seconds % 60, if (locked) "  · LOCKED" else ""),
             color = Color.White,
@@ -552,7 +547,7 @@ private fun ReviewScreen(
             onClick = { onDiscard(silent) },
             modifier = Modifier.align(Alignment.TopStart).windowInsetsPadding(WindowInsets.safeDrawing).padding(16.dp),
             shape = RoundedCornerShape(6.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Ink.copy(alpha = .88f), contentColor = Color.White),
+            colors = ButtonDefaults.buttonColors(containerColor = Colors.Ink.copy(alpha = .88f), contentColor = Color.White),
         ) { Text("Discard") }
         if (media.kind == MediaKind.Video) {
             Button(
@@ -562,7 +557,7 @@ private fun ReviewScreen(
                 },
                 modifier = Modifier.align(Alignment.TopEnd).windowInsetsPadding(WindowInsets.safeDrawing).padding(16.dp),
                 shape = RoundedCornerShape(6.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = if (muted) Paper else Ink.copy(alpha = .88f), contentColor = if (muted) Ink else Color.White),
+                colors = ButtonDefaults.buttonColors(containerColor = if (muted) Colors.Paper else Colors.Ink.copy(alpha = .88f), contentColor = if (muted) Colors.Ink else Color.White),
             ) {
                 Text(
                     when {
@@ -579,8 +574,8 @@ private fun ReviewScreen(
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(16.dp)
-                .background(Paper, RoundedCornerShape(10.dp))
-                .border(1.dp, Hairline, RoundedCornerShape(10.dp))
+                .background(Colors.Paper, RoundedCornerShape(10.dp))
+                .border(1.dp, Colors.Hairline, RoundedCornerShape(10.dp))
                 .padding(10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -596,7 +591,7 @@ private fun ReviewScreen(
                 enabled = !busy,
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(6.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Ink, contentColor = Color.White),
+                colors = ButtonDefaults.buttonColors(containerColor = Colors.Ink, contentColor = Color.White),
             ) { Text("Save") }
         }
     }

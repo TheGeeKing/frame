@@ -34,10 +34,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.ButtonDefaults
 import androidx.core.content.ContextCompat
 
-private val Ink = Color(0xFF171715)
-private val Paper = Color(0xFFF7F6F2)
-private val Muted = Color(0xFF6F6D67)
-
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,12 +41,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme(
                 colorScheme = androidx.compose.material3.lightColorScheme(
-                    primary = Ink,
+                    primary = Colors.Ink,
                     onPrimary = Color.White,
-                    background = Paper,
-                    onBackground = Ink,
+                    background = Colors.Paper,
+                    onBackground = Colors.Ink,
                     surface = Color.White,
-                    outline = Color(0xFFE7E5DF),
+                    outline = Colors.Hairline,
                 ),
             ) { PermissionGate() }
         }
@@ -104,11 +100,11 @@ private fun PermissionStep(
     onSkip: (() -> Unit)? = null,
 ) {
     Column(
-        Modifier.fillMaxSize().background(Paper).padding(32.dp),
+        Modifier.fillMaxSize().background(Colors.Paper).padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(eyebrow, color = Muted, style = MaterialTheme.typography.labelLarge)
+        Text(eyebrow, color = Colors.Muted, style = MaterialTheme.typography.labelLarge)
         Text(
             title,
             modifier = Modifier.padding(top = 8.dp),
@@ -118,18 +114,18 @@ private fun PermissionStep(
         Text(
             body,
             modifier = Modifier.padding(top = 12.dp, bottom = 24.dp),
-            color = Muted,
+            color = Colors.Muted,
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
         )
         Button(
             onClick = onAllow,
             shape = RoundedCornerShape(6.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Ink, contentColor = Color.White),
+            colors = ButtonDefaults.buttonColors(containerColor = Colors.Ink, contentColor = Color.White),
         ) { Text(allowLabel) }
         if (skipLabel != null && onSkip != null) {
             TextButton(onClick = onSkip) {
-                Text(skipLabel, color = Muted)
+                Text(skipLabel, color = Colors.Muted)
             }
         }
     }
