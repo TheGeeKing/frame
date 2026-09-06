@@ -1,6 +1,7 @@
 package com.frame.camera
 
 import android.Manifest
+import android.app.Activity
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -17,8 +18,8 @@ import androidx.compose.foundation.background
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,11 +27,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.ButtonDefaults
 import androidx.core.content.ContextCompat
+
+private val Ink = Color(0xFF171715)
+private val Paper = Color(0xFFF7F6F2)
+private val Muted = Color(0xFF6F6D67)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,10 +45,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme(
                 colorScheme = androidx.compose.material3.lightColorScheme(
-                    primary = Color(0xFF171715),
+                    primary = Ink,
                     onPrimary = Color.White,
-                    background = Color(0xFFF7F6F2),
-                    onBackground = Color(0xFF171715),
+                    background = Paper,
+                    onBackground = Ink,
                     surface = Color.White,
                     outline = Color(0xFFE7E5DF),
                 ),
@@ -54,35 +60,80 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun PermissionGate() {
     val activity = LocalActivity.current ?: return
-    val permissions = arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
-    var granted by remember {
-        mutableStateOf(permissions.all { ContextCompat.checkSelfPermission(activity, it) == PackageManager.PERMISSION_GRANTED })
+    var cameraGranted by remember { mutableStateOf(activity.hasPermission(Manifest.permission.CAMERA)) }
+    var microphoneGranted by remember { mutableStateOf(activity.hasPermission(Manifest.permission.RECORD_AUDIO)) }
+    var microphoneSkipped by remember { mutableStateOf(false) }
+
+    val requestCamera = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        cameraGranted = granted
     }
-    val request = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-        granted = it[Manifest.permission.CAMERA] == true
+    val requestMicrophone = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        microphoneGranted = granted
+        if (!granted) microphoneSkipped = true
     }
 
-    if (granted) {
-        CameraScreen()
-    } else {
-        Column(
-            Modifier.fillMaxSize().background(Color(0xFFF7F6F2)).padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text("Frame", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.SemiBold)
-            Text(
-                "Camera access is required to compose a shot. Microphone access is optional and only used for video.",
-                modifier = Modifier.padding(top = 12.dp, bottom = 24.dp),
-                color = Color(0xFF6F6D67),
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            Button(
-                onClick = { request.launch(permissions) },
-                shape = RoundedCornerShape(6.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF171715), contentColor = Color.White),
-            ) { Text("Allow camera") }
-        }
-        LaunchedEffect(Unit) { request.launch(permissions) }
+    when {
+        cameraGranted && (microphoneGranted || microphoneSkipped) -> CameraScreen()
+        cameraGranted -> PermissionStep(
+            eyebrow = "2 of 2",
+            title = "Microphone",
+            body = "Sound is only used when you record video. Skip this to shoot silent clips.",
+            allowLabel = "Allow microphone",
+            skipLabel = "Not now",
+            onAllow = { requestMicrophone.launch(Manifest.permission.RECORD_AUDIO) },
+            onSkip = { microphoneSkipped = true },
+        )
+        else -> PermissionStep(
+            eyebrow = "1 of 2",
+            title = "Camera",
+            body = "Frame needs the camera to take photos and record video. Without it, there is nothing to shoot.",
+            allowLabel = "Allow camera",
+            onAllow = { requestCamera.launch(Manifest.permission.CAMERA) },
+        )
     }
 }
+
+@Composable
+private fun PermissionStep(
+    eyebrow: String,
+    title: String,
+    body: String,
+    allowLabel: String,
+    onAllow: () -> Unit,
+    skipLabel: String? = null,
+    onSkip: (() -> Unit)? = null,
+) {
+    Column(
+        Modifier.fillMaxSize().background(Paper).padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(eyebrow, color = Muted, style = MaterialTheme.typography.labelLarge)
+        Text(
+            title,
+            modifier = Modifier.padding(top = 8.dp),
+            style = MaterialTheme.typography.displaySmall,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            body,
+            modifier = Modifier.padding(top = 12.dp, bottom = 24.dp),
+            color = Muted,
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center,
+        )
+        Button(
+            onClick = onAllow,
+            shape = RoundedCornerShape(6.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Ink, contentColor = Color.White),
+        ) { Text(allowLabel) }
+        if (skipLabel != null && onSkip != null) {
+            TextButton(onClick = onSkip) {
+                Text(skipLabel, color = Muted)
+            }
+        }
+    }
+}
+
+private fun Activity.hasPermission(permission: String): Boolean =
+    ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
