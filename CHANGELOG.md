@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/TheGeeKing/frame/compare/Frame-v1.3.0...Frame-v1.3.1) (2026-09-06)
+
+
+### Bug Fixes
+
+* **ui:** split permission onboarding into two steps ([610edd7](https://github.com/TheGeeKing/frame/commit/610edd707f0a333ccdf60eec60d52bb94ef8287b))
+
 ## [1.3.0](https://github.com/TheGeeKing/frame/compare/Frame-v1.2.0...Frame-v1.3.0) (2026-09-05)
 
 
